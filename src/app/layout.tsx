@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Playfair_Display, Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/hooks/useAuth';
+import { Suspense } from 'react';
 import Navbar from '@/components/Navbar';
 import CursorGlow from '@/components/CursorGlow';
 
@@ -46,7 +47,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-[var(--color-cinema-bg)] text-[var(--color-cream)] antialiased">
         <AuthProvider>
           <CursorGlow />
-          <Navbar />
+          <Suspense fallback={<nav className="h-16 border-b border-[var(--color-border-warm)] bg-[var(--color-cinema-bg)]/80" />}>
+            <Navbar />
+          </Suspense>
           <main className="flex-1 flex flex-col">{children}</main>
         </AuthProvider>
       </body>

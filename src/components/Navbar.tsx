@@ -8,11 +8,14 @@ import { motion } from 'framer-motion';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, signOut, loading } = useAuth();
+  const { user, profile, signOut, loading } = useAuth();
+
+  const username = profile?.username ?? user?.user_metadata?.username ?? user?.email?.split('@')[0];
 
   const navItems = [
     { href: '/', label: 'Library', icon: Film },
     { href: '/stats', label: 'Analytics', icon: BarChart3 },
+    ...(username ? [{ href: `/profile/${encodeURIComponent(username)}`, label: 'Profile', icon: Clapperboard }] : []),
   ];
 
   return (

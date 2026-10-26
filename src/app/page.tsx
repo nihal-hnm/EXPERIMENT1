@@ -2,17 +2,17 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Clapperboard } from 'lucide-react';
+import { Plus, Clapperboard, Share2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMediaItems } from '@/hooks/useMediaItems';
 import FilterBar from '@/components/FilterBar';
 import MediaGrid from '@/components/MediaGrid';
 import AddEditModal from '@/components/AddEditModal';
+import ShareCard from '@/components/ShareCard';
 import type { MediaItem, MediaStatus } from '@/lib/types';
 import Link from 'next/link';
-
 export default function HomePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { items, loading: itemsLoading, addItem, updateItem, deleteItem, incrementEpisode } =
     useMediaItems();
 
@@ -25,6 +25,7 @@ export default function HomePage() {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<MediaItem | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Derived platform list
   const platforms = useMemo(
@@ -155,17 +156,32 @@ export default function HomePage() {
             {items.length} title{items.length !== 1 ? 's' : ''} catalogued
           </p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={handleOpenAdd}
-          className="flex shrink-0 items-center gap-2 rounded-xl bg-[var(--color-amber)] px-4 py-2.5
-            text-sm font-semibold text-[var(--color-cinema-bg)] hover:bg-[var(--color-amber-light)]
-            transition-all duration-200 cursor-pointer shadow-[0_4px_16px_rgba(212,163,89,0.2)]"
-        >
-          <Plus className="h-4 w-4" />
-          Add Title
-        </motion.button>
+        <div className="flex items-center gap-2">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setShareOpen(true)}
+            id="open-share-card-btn"
+            className="flex shrink-0 items-center gap-2 rounded-xl border border-[var(--color-border-warm-hover)]
+              bg-[var(--color-cinema-card)] px-4 py-2.5 text-sm font-medium
+              text-[var(--color-sepia)] hover:text-[var(--color-cream)] hover:border-[var(--color-amber)]/30
+              transition-all duration-200 cursor-pointer"
+          >
+            <Share2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Share</span>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={handleOpenAdd}
+            className="flex shrink-0 items-center gap-2 rounded-xl bg-[var(--color-amber)] px-4 py-2.5
+              text-sm font-semibold text-[var(--color-cinema-bg)] hover:bg-[var(--color-amber-light)]
+              transition-all duration-200 cursor-pointer shadow-[0_4px_16px_rgba(212,163,89,0.2)]"
+          >
+            <Plus className="h-4 w-4" />
+            Add Title
+          </motion.button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -192,12 +208,22 @@ export default function HomePage() {
         onAddFirst={handleOpenAdd}
       />
 
-      {/* Modal */}
+      {/* Add/Edit Modal */}
       <AddEditModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onSubmit={handleSubmit}
         editItem={editItem}
+      />
+
+      {/* Share Card */}
+      <ShareCard
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        items={items}
+        username={profile?.username ?? user.user_metadata?.username ?? user.email?.split('@')[0] ?? null}
+        displayName={profile?.display_name ?? user.user_metadata?.display_name ?? user.user_metadata?.full_name ?? null}
+        memberSince={profile?.created_at ?? user.created_at}
       />
     </div>
   );
