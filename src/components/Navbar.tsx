@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, profile, signOut, loading } = useAuth();
+  const { user, profile, isGuest, signOut, loading } = useAuth();
 
   const username = profile?.username ?? user?.user_metadata?.username ?? user?.email?.split('@')[0];
 
@@ -74,15 +74,22 @@ export default function Navbar() {
             {!loading && (
               <>
                 {user ? (
-                  <button
-                    onClick={() => signOut()}
-                    className="ml-3 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
-                      text-[var(--color-muted)] hover:text-[var(--color-rust)] hover:bg-[var(--color-rust)]/10
-                      transition-all duration-200 cursor-pointer"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span className="hidden sm:inline">Sign Out</span>
-                  </button>
+                  <div className="ml-3 flex items-center gap-2">
+                    {isGuest && (
+                      <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase bg-[var(--color-amber)]/15 text-[var(--color-amber)] border border-[var(--color-amber)]/25">
+                        Guest
+                      </span>
+                    )}
+                    <button
+                      onClick={() => signOut()}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
+                        text-[var(--color-muted)] hover:text-[var(--color-rust)] hover:bg-[var(--color-rust)]/10
+                        transition-all duration-200 cursor-pointer"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span className="hidden sm:inline">Sign Out</span>
+                    </button>
+                  </div>
                 ) : (
                   <Link
                     href="/login"

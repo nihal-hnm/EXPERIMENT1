@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
-import { Clapperboard, Mail, Lock, Sparkles, ArrowRight } from 'lucide-react';
+import { Clapperboard, Mail, Lock, Sparkles, ArrowRight, Ticket } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -12,7 +12,7 @@ interface AuthCardProps {
 }
 
 export default function AuthCard({ mode }: AuthCardProps) {
-  const { signIn, signUp, signInWithMagicLink } = useAuth();
+  const { signIn, signUp, signInWithMagicLink, signInAsGuest } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,6 +46,12 @@ export default function AuthCard({ mode }: AuthCardProps) {
       router.push('/');
     }
     setLoading(false);
+  };
+
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    await signInAsGuest();
+    router.push('/');
   };
 
   return (
@@ -205,6 +211,30 @@ export default function AuthCard({ mode }: AuthCardProps) {
                   {showMagicLink ? 'Use password instead' : 'Sign in with magic link'}
                 </button>
               )}
+
+              {/* Or Divider */}
+              <div className="relative my-4 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[var(--color-border-warm)]" />
+                </div>
+                <span className="relative bg-[var(--color-cinema-card)] px-3 text-[11px] uppercase tracking-wider text-[var(--color-muted-dark)]">
+                  or
+                </span>
+              </div>
+
+              {/* Guest Login Button */}
+              <button
+                type="button"
+                onClick={handleGuestLogin}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border-warm-hover)]
+                  bg-[var(--color-cinema-obsidian)] px-4 py-2.5 text-xs font-semibold uppercase tracking-wider
+                  text-[var(--color-sepia)] hover:text-[var(--color-cream)] hover:border-[var(--color-amber)]/40 hover:bg-[var(--color-cinema-card)]
+                  disabled:opacity-50 transition-all duration-200 cursor-pointer shadow-sm group"
+              >
+                <Ticket className="h-4 w-4 text-[var(--color-amber)] group-hover:rotate-12 transition-transform duration-200" />
+                Explore as Guest (Demo Library)
+              </button>
             </motion.form>
           )}
         </AnimatePresence>

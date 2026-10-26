@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Clapperboard, Share2 } from 'lucide-react';
+import { Plus, Clapperboard, Share2, Ticket } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMediaItems } from '@/hooks/useMediaItems';
 import FilterBar from '@/components/FilterBar';
@@ -11,8 +11,9 @@ import AddEditModal from '@/components/AddEditModal';
 import ShareCard from '@/components/ShareCard';
 import type { MediaItem, MediaStatus } from '@/lib/types';
 import Link from 'next/link';
+
 export default function HomePage() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, isGuest, signInAsGuest, loading: authLoading } = useAuth();
   const { items, loading: itemsLoading, addItem, updateItem, deleteItem, incrementEpisode } =
     useMediaItems();
 
@@ -105,10 +106,10 @@ export default function HomePage() {
           </div>
 
           {/* CTA */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
             <Link
               href="/register"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-amber)] px-8 py-3.5
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-amber)] px-7 py-3.5
                 text-sm font-semibold text-[var(--color-cinema-bg)] hover:bg-[var(--color-amber-light)]
                 transition-all duration-200 cursor-pointer shadow-[0_4px_20px_rgba(212,163,89,0.25)]"
             >
@@ -116,13 +117,24 @@ export default function HomePage() {
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border-warm-hover)]
-                px-8 py-3.5 text-sm font-medium text-[var(--color-sepia)]
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border-warm-hover)]
+                px-6 py-3.5 text-sm font-medium text-[var(--color-sepia)]
                 hover:border-[var(--color-amber)]/30 hover:text-[var(--color-cream)]
                 transition-all duration-200 cursor-pointer"
             >
               Sign In
             </Link>
+            <button
+              type="button"
+              onClick={() => signInAsGuest()}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-amber)]/25
+                bg-[var(--color-cinema-card)] px-6 py-3.5 text-sm font-medium text-[var(--color-amber)]
+                hover:border-[var(--color-amber)]/45 hover:bg-[var(--color-amber)]/10
+                transition-all duration-200 cursor-pointer shadow-sm group"
+            >
+              <Ticket className="h-4 w-4 text-[var(--color-amber)] group-hover:rotate-12 transition-transform duration-200" />
+              Explore Demo
+            </button>
           </div>
 
           {/* Features strip */}
@@ -146,6 +158,31 @@ export default function HomePage() {
   /* ── Authenticated library ── */
   return (
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Guest Mode Banner */}
+      {isGuest && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-xl border border-[var(--color-amber)]/25
+            bg-[var(--color-amber)]/10 px-4 py-3 text-xs text-[var(--color-amber-light)] card-grain"
+        >
+          <div className="flex items-center gap-2 text-center sm:text-left">
+            <Ticket className="h-4 w-4 shrink-0 text-[var(--color-amber)]" />
+            <span>
+              You are exploring in <strong>Guest Demo Mode</strong> with a pre-loaded sample library.
+              Feel free to add titles, increment episodes, and check analytics!
+            </span>
+          </div>
+          <Link
+            href="/register"
+            className="shrink-0 rounded-lg bg-[var(--color-amber)] px-3 py-1.5 font-semibold text-[var(--color-cinema-bg)]
+              hover:bg-[var(--color-amber-light)] transition-colors cursor-pointer"
+          >
+            Create Permanent Account
+          </Link>
+        </motion.div>
+      )}
+
       {/* Header row */}
       <div className="flex items-start justify-between gap-4">
         <div>
