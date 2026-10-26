@@ -1,8 +1,18 @@
-'use client';
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Film, Tv, Star, Link as LinkIcon, Clock, Hash, StickyNote } from 'lucide-react';
+import {
+  X,
+  Film,
+  Tv,
+  Star,
+  Link as LinkIcon,
+  Clock,
+  Hash,
+  StickyNote,
+  Sparkles,
+  Loader2,
+  Check,
+} from 'lucide-react';
 import type { MediaItem, MediaItemInsert, MediaType, MediaStatus } from '@/lib/types';
 import { OTT_PLATFORMS } from '@/lib/types';
 
@@ -11,6 +21,18 @@ interface AddEditModalProps {
   onClose: () => void;
   onSubmit: (item: MediaItemInsert) => Promise<{ error: string | null }>;
   editItem?: MediaItem | null;
+}
+
+interface TmdbSearchResult {
+  id: number;
+  tmdb_id: number;
+  title: string;
+  media_type: 'movie' | 'series';
+  year: string | null;
+  poster_url: string | null;
+  thumbnail_url: string | null;
+  vote_average: number | null;
+  overview: string | null;
 }
 
 export default function AddEditModal({ isOpen, onClose, onSubmit, editItem }: AddEditModalProps) {
@@ -28,7 +50,86 @@ export default function AddEditModal({ isOpen, onClose, onSubmit, editItem }: Ad
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // TMDB Autocomplete state
+  const [searchResults, setSearchResults] = useState<TmdbSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [autofilledBadge, setAutofilledBadge] = useState<string | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+
   const isEditing = !!editItem;
+
+  // TMDB live search
+  const handleTitleChange = (val: string) => {
+    setTitle(val);
+    setAutofilledBadge(null);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (isEditing || val.trim().length < 2) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      setSearching(false);
+      return;
+    }
+
+    setSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/tmdb/search?query=${encodeURIComponent(val.trim())}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.results || []);
+          setShowDropdown((data.results || []).length > 0);
+        }
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+  };
+
+  // Handle selecting a TMDB search result
+  const handleSelectTmdb = async (result: TmdbSearchResult) => {
+    setTitle(result.title);
+    setMediaType(result.media_type);
+    setShowDropdown(false);
+    setSearchResults([]);
+    setAutofilledBadge(`${result.title} (${result.year ?? 'TMDB'})`);
+
+    if (result.poster_url) {
+      setPosterUrl(result.poster_url);
+    }
+    if (result.overview && !notes) {
+      setNotes(result.overview);
+    }
+
+    // Fetch detailed metadata (runtime, episode count)
+    try {
+      const res = await fetch(`/api/tmdb/details?id=${result.id}&type=${result.media_type}`);
+      if (res.ok) {
+        const details = await res.json();
+        if (details.runtime_minutes) {
+          setRuntimeMinutes(String(details.runtime_minutes));
+        }
+        if (result.media_type === 'series' && details.total_episodes) {
+          setTotalEpisodes(String(details.total_episodes));
+        }
+        if (details.poster_url) {
+          setPosterUrl(details.poster_url);
+        }
+        if (details.overview && !notes) {
+          setNotes(details.overview);
+        }
+      }
+    } catch {
+      // Non-fatal
+    }
+  };
 
   // Populate form when editing
   useEffect(() => {
@@ -62,6 +163,9 @@ export default function AddEditModal({ isOpen, onClose, onSubmit, editItem }: Ad
     setRating('');
     setNotes('');
     setError(null);
+    setSearchResults([]);
+    setShowDropdown(false);
+    setAutofilledBadge(null);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,22 +252,136 @@ export default function AddEditModal({ isOpen, onClose, onSubmit, editItem }: Ad
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {/* Title */}
-              <div>
-                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[var(--color-muted)]">
-                  Title *
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                  placeholder="The Grand Budapest Hotel"
-                  className="w-full rounded-lg border border-[var(--color-border-warm)] bg-[var(--color-cinema-obsidian)]
-                    py-2.5 px-4 text-sm text-[var(--color-cream)] placeholder:text-[var(--color-muted-dark)]
-                    focus:border-[var(--color-amber)]/40 focus:outline-none focus:ring-1 focus:ring-[var(--color-amber)]/30
-                    transition-all duration-200"
-                />
+              {/* Title with TMDB Autocomplete */}
+              <div className="relative" ref={dropdownRef}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium uppercase tracking-wider text-[var(--color-muted)]">
+                    Title *
+                  </label>
+                  {!isEditing && (
+                    <span className="flex items-center gap-1 text-[11px] text-[var(--color-amber)]/80">
+                      <Sparkles className="h-3 w-3" />
+                      TMDB auto-fill
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    onFocus={() => {
+                      if (searchResults.length > 0) setShowDropdown(true);
+                    }}
+                    required
+                    placeholder="Search film or series (e.g. Oppenheimer)..."
+                    className="w-full rounded-lg border border-[var(--color-border-warm)] bg-[var(--color-cinema-obsidian)]
+                      py-2.5 pl-4 pr-10 text-sm text-[var(--color-cream)] placeholder:text-[var(--color-muted-dark)]
+                      focus:border-[var(--color-amber)]/40 focus:outline-none focus:ring-1 focus:ring-[var(--color-amber)]/30
+                      transition-all duration-200"
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]">
+                    {searching ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-[var(--color-amber)]" />
+                    ) : autofilledBadge ? (
+                      <Check className="h-4 w-4 text-[var(--color-amber)]" />
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Autofill confirmation banner */}
+                {autofilledBadge && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-1.5 flex items-center justify-between rounded-md bg-[var(--color-amber)]/10
+                      border border-[var(--color-amber)]/20 px-3 py-1.5 text-xs text-[var(--color-amber-light)]"
+                  >
+                    <span>Autofilled metadata for <strong>{autofilledBadge}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setAutofilledBadge(null)}
+                      className="ml-2 text-[var(--color-muted)] hover:text-[var(--color-cream)]"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* TMDB Results Dropdown */}
+                <AnimatePresence>
+                  {showDropdown && searchResults.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl
+                        border border-[var(--color-border-warm-hover)] bg-[var(--color-cinema-obsidian)]
+                        p-1.5 shadow-[var(--shadow-modal)] card-grain divide-y divide-[var(--color-border-warm)]/40"
+                    >
+                      {searchResults.map((item) => (
+                        <button
+                          key={`${item.media_type}-${item.id}`}
+                          type="button"
+                          onClick={() => handleSelectTmdb(item)}
+                          className="flex w-full items-center gap-3 rounded-lg p-2 text-left
+                            hover:bg-[var(--color-cinema-card)] transition-colors duration-150 cursor-pointer group"
+                        >
+                          {/* Thumbnail */}
+                          <div className="h-12 w-8 shrink-0 overflow-hidden rounded bg-[var(--color-cinema-card)] border border-[var(--color-border-warm)] flex items-center justify-center">
+                            {item.thumbnail_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={item.thumbnail_url}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              item.media_type === 'movie' ? (
+                                <Film className="h-3.5 w-3.5 text-[var(--color-muted)]" />
+                              ) : (
+                                <Tv className="h-3.5 w-3.5 text-[var(--color-muted)]" />
+                              )
+                            )}
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-sm font-medium text-[var(--color-cream)] group-hover:text-[var(--color-amber)] transition-colors">
+                                {item.title}
+                              </span>
+                              {item.year && (
+                                <span className="text-xs text-[var(--color-muted)]">
+                                  ({item.year})
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span
+                                className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                                  item.media_type === 'movie'
+                                    ? 'bg-[var(--color-amber)]/15 text-[var(--color-amber)]'
+                                    : 'bg-[var(--color-rust)]/15 text-[var(--color-rust-light)]'
+                                }`}
+                              >
+                                {item.media_type === 'movie' ? 'Film' : 'Series'}
+                              </span>
+                              {item.vote_average !== null && item.vote_average > 0 && (
+                                <span className="flex items-center gap-0.5 text-xs text-[var(--color-sepia)]">
+                                  <Star className="h-3 w-3 text-[var(--color-amber)]" fill="currentColor" />
+                                  {item.vote_average}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Type + Status row */}
